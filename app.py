@@ -1,4 +1,5 @@
 import os
+import datetime
 
 from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session
@@ -50,7 +51,67 @@ def index():
 @login_required
 def buy():
     """Buy shares of stock"""
-    return apology("TODO")
+    # User reached route via GET (as by clicking a link or via redirect)
+
+    if request.method == "GET":
+        return render_template("buy.html", stocks=stocks)
+
+    symbol = request.form.get("symbol")
+    shares = request.form.get("shares")
+    # Ensure symbol was submitted
+    if not symbol:
+        return apology("must provide symbol", 403)
+
+    # Ensure symbol is valid
+    stockLookup = lookup(symbol)
+    if not stockLookup:
+        return apology("must provide valid symbol", 403)
+
+    # Ensure # of shares was submitted
+    if not shares:
+        return apology("must provide number of shares", 403)
+    # Ensure # of shares was submitted
+    elif not shares > 0:
+        return apology("must provide a positive number", 403)
+
+    # check if user can afford the purchase
+    id = session["user_id"]
+    userCash = db.execute("SELECT cash FROM users WHERE id = ?", id)
+    stockPrice = stockLookup["price"]
+    total = shares * stockPrice
+    name = stockLookup["name"]
+    # enable purchase
+    if userCash > total:
+        # update user's cash balance
+        balance = userCash - total
+        db.execute("UPDATE users SET cash = ? WHERE id = ?", balance, id)
+
+        # record transaction in purchases table
+        purchaseDate = datetime.datetime.now()
+        db.execute("INSERT INTO purchases VALUES (?, ?, ?, ?, ?, ?)",
+                   purchaseDate, id, shares, symbol, stockPrice, total)
+
+        # check if stock exists in stocks table and add if not
+        isStock = db.execute("SELECT * FROM stocks WHERE symbol = ?", symbol)
+        if not isStock:
+            db.execute("UPDATE stocks SET symbol = ?, name= ?", symbol, name)
+
+        # check if user exists in shares_owned table
+        # update if user exists, insert if not
+        isUser = db.execute("SELECT * FROM shares_owned WHERE userId = ?", id)
+        if isUser:
+            db.execute(
+                "UPDATE shares_owned SET userId = ?, stock_id= ?, shares= ?", id, symbol, shares)
+        else:
+            db.execute("INSERT INTO shares_owned VALUES (?, ?, ?)",
+                       id, symbol, shares,)
+
+        # Redirect user to home page
+        return redirect("/")
+
+    # deny purchase
+    else:
+        return apology("not enough cash for purchase", 403)
 
 
 @app.route("/history")
@@ -112,7 +173,21 @@ def logout():
 @login_required
 def quote():
     """Get stock quote."""
-    return apology("TODO")
+    if request.method == "POST":
+        symbol = request.form.get("symbol")
+        # Ensure symbol was submitted
+        if not symbol:
+            return apology("must provide symbol", 403)
+        # Get values from looking up symbol
+        stockLookup = lookup(symbol)
+        # Direct user to quoted page
+        if not stockLookup:
+            return apology("invalid symbol", 400)
+        else:
+            return render_template("quoted.html", name=stockLookup["name"], price=stockLookup["price"], symbol=stockLookup["symbol"])
+    # User reached route via GET (as by clicking a link)
+    else:
+        return render_template("quote.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -154,3 +229,8 @@ def register():
 def sell():
     """Sell shares of stock"""
     return apology("TODO")
+
+
+@app.route("/search")
+def search():
+    print("reached search")
