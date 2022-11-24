@@ -1,0 +1,131 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Buy
+{% endblock %}
+
+{% block main %}
+<h3 class="pb-5" style="text-align: left">Buy A Stock</h3>
+<form class="center-up-flex-row mb-4" action="/buy" method="post">
+    <div class="form-group prt-3">
+        <label class="mb-1" for="symbol">Select stock</label>
+        <input autocomplete="off" autofocus class="form-control" id="symbol" name="symbol" placeholder="Symbol"
+            type="text">
+    </div>
+    <div class="form-group prt-3">
+        <label class="mb-1" for="shares">Select shares</label>
+        <input autocomplete="off" class="form-control" id="shares" name="shares" min="1"
+            oninput="validity.valid||(value='');" placeholder="Shares" type="number">
+    </div>
+    <button class="btn btn-primary" style="position:relative; bottom: -13px" type="submit">Buy Stock</button>
+</form>
+
+<section class="center-up-flex-column">
+    <table class="table w-75">
+        <thead>
+            <tr id="theaders">
+                <!-- insert symbol, name, shares, price, and total dynamically -->
+            </tr>
+        </thead>
+
+        <tbody id="tbody">
+            <!-- insert data dynamically -->
+        </tbody>
+
+    </table>
+</section>
+
+<script>
+    let symbolInput = document.querySelector("#symbol");
+    let sharesInput = document.querySelector("#shares");
+    sharesInput.value = 1;
+    let tbody = document.querySelector('#tbody');
+
+    symbolInput.addEventListener("input", async () => {
+        // clear table body
+        tbody.innerHTML = "";
+        if (!symbolInput.value) return;
+        // query database to get symbol
+        let response = await fetch("/search?q=" + symbolInput.value)
+        let stocks = await response.json();
+
+        if (stocks.length != 1) {
+            // clear headers --> set symbol and name headers
+            let headers = document.querySelector("#theaders");
+            headers.innerHTML = "";
+            let thSymbol = makeColumn("Symbol");
+            let thName = makeColumn("Name");
+            headers.append(thSymbol, thName);
+
+            // populate table body
+            for (stock in stocks) {
+                // create element for each symbol and name data-cell
+                let tdSymbol = document.createElement("td");
+                let tdName = document.createElement("td");
+                // get from backend
+                tdSymbol.innerHTML = stocks[stock].symbol;
+                tdName.innerHTML = stocks[stock].name;
+
+                let tr = document.createElement("tr")
+                tr.append(tdSymbol, tdName);
+                tbody.appendChild(tr);
+            }
+        }
+        else {
+            // set table headers
+            let headers = document.querySelector("#theaders");
+            let thShares = makeColumn("Shares");
+            let thPrice = makeColumn("Price");
+            let thTotal = makeColumn("Total");
+            headers.append(thShares, thPrice, thTotal);
+
+            // populate table body
+            // create element for each data-cell
+            let tdSymbol = document.createElement("td");
+            let tdName = document.createElement("td");
+            let tdPrice = document.createElement("td");
+            let tdShares = document.createElement("td");
+            let tdTotal = document.createElement("td");
+            // get from backend
+            tdSymbol.innerHTML = stocks[0].symbol;
+            tdName.innerHTML = stocks[0].name;
+            tdPrice.innerHTML = stocks[0].price;
+            // populate shares field from document
+            tdShares.innerHTML = sharesInput.value;
+            // calculate price * shares
+            let total = sharesInput.value * stocks[0].price;
+            tdTotal.innerHTML = total;
+            tdTotal.style.width = "120px";
+
+            // send as static row
+            let tr = document.createElement("tr")
+            tr.append(tdSymbol, tdName, tdPrice, tdShares, tdTotal);
+            tbody.appendChild(tr);
+
+            // send as dynamic row
+            sharesInput.addEventListener("input", () => {
+                // clear table body
+                tbody.innerHTML = "";
+                // populate shares field from listener
+                tdShares.innerHTML = sharesInput.value;
+                // calculate price * shares
+                let total = sharesInput.value * stocks[0].price;
+                tdTotal.innerHTML = total;
+
+                let tr = document.createElement("tr")
+                tr.append(tdSymbol, tdName, tdPrice, tdShares, tdTotal);
+                tbody.appendChild(tr);
+            });
+        }
+    });
+
+    function makeColumn(text) {
+        th = document.createElement("th");
+        th.innerHTML = text;
+        th.setAttribute("scope", "col");
+        return th;
+    }
+
+</script>
+
+{% endblock %}

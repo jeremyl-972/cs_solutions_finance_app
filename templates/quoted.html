@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Quoted
+{% endblock %}
+
+{% block main %}
+<h3 class="pb-5" style="text-align: left">Your Quote For {{name}}</h3>
+
+<section class="center-up-flex-column">
+    <table class="table w-75">
+        <thead>
+            <tr>
+                <th scope="col">Symbol</th>
+                <th scope="col">Name</th>
+                <th class="total" scope="col">Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{symbol}}</th>
+                <td>{{name}}</td>
+                <td>{{price}}</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+{% endblock %}
