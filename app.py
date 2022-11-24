@@ -54,7 +54,7 @@ def buy():
     # User reached route via GET (as by clicking a link or via redirect)
 
     if request.method == "GET":
-        return render_template("buy.html", stocks=stocks)
+        return render_template("buy.html")
 
     symbol = request.form.get("symbol")
     shares = request.form.get("shares")
@@ -233,4 +233,26 @@ def sell():
 
 @app.route("/search")
 def search():
-    print("reached search")
+    input = request.args.get("q")
+    # send q to database and get all stocks LIKE q
+    stocks = db.execute(
+        "SELECT * FROM stocks WHERE symbol LIKE ? LIMIT ?", input + "%", 100)
+
+    # set expected data structure for response object
+    data = []
+    # if only one in query, lookup stock for price
+    if len(stocks) == 1:
+        for stock in stocks:
+            dict = {}
+            symbol = stock["symbol"]
+            name = stock["name"]
+            stockLookup = lookup(stock["symbol"])
+            price = stockLookup["price"]
+            dict['symbol'] = symbol
+            dict['name'] = name
+            dict['price'] = price
+            data.append(dict)
+
+        return data
+    else:
+        return stocks
