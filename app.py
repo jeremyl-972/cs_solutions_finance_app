@@ -57,7 +57,10 @@ def buy():
         return render_template("buy.html")
 
     symbol = request.form.get("symbol")
+    stockIdList = db.execute("SELECT id FROM stocks WHERE symbol = ?", symbol)
+    stockId = stockIdList[0]["id"]
     shares = request.form.get("shares")
+    shares = int(shares)
     # Ensure symbol was submitted
     if not symbol:
         return apology("must provide symbol", 403)
@@ -76,7 +79,8 @@ def buy():
 
     # check if user can afford the purchase
     id = session["user_id"]
-    userCash = db.execute("SELECT cash FROM users WHERE id = ?", id)
+    userCashList = db.execute("SELECT cash FROM users WHERE id = ?", id)
+    userCash = userCashList[0]["cash"]
     stockPrice = stockLookup["price"]
     total = shares * stockPrice
     name = stockLookup["name"]
@@ -88,23 +92,27 @@ def buy():
 
         # record transaction in purchases table
         purchaseDate = datetime.datetime.now()
-        db.execute("INSERT INTO purchases VALUES (?, ?, ?, ?, ?, ?)",
-                   purchaseDate, id, shares, symbol, stockPrice, total)
+        db.execute("INSERT INTO purchases (purchase_date, userID, shares, stock_id, stock_price, total) VALUES (?, ?, ?, ?, ?, ?)",
+                   purchaseDate, id, shares, stockId, stockPrice, total)
 
         # check if stock exists in stocks table and add if not
         isStock = db.execute("SELECT * FROM stocks WHERE symbol = ?", symbol)
         if not isStock:
-            db.execute("UPDATE stocks SET symbol = ?, name= ?", symbol, name)
+            db.execute(
+                "INSERT INTO stocks (symbol, name) VALUES (?, ?)", symbol, name)
 
         # check if user exists in shares_owned table
         # update if user exists, insert if not
-        isUser = db.execute("SELECT * FROM shares_owned WHERE userId = ?", id)
-        if isUser:
+        userList = db.execute(
+            "SELECT * FROM shares_owned WHERE userId = ?", id)
+        if userList:
+            userShares = userList[0]["shares"]
+            shares += userShares
             db.execute(
-                "UPDATE shares_owned SET userId = ?, stock_id= ?, shares= ?", id, symbol, shares)
+                "UPDATE shares_owned SET userId = ?, stock_id= ?, shares= ?", id, stockId, shares)
         else:
-            db.execute("INSERT INTO shares_owned VALUES (?, ?, ?)",
-                       id, symbol, shares,)
+            db.execute(
+                "INSERT INTO shares_owned (userID, stock_id, shares) VALUES (?, ?, ?)", id, stockId, shares,)
 
         # Redirect user to home page
         return redirect("/")
@@ -246,13 +254,12 @@ def search():
             dict = {}
             symbol = stock["symbol"]
             name = stock["name"]
-            stockLookup = lookup(stock["symbol"])
+            stockLookup = lookup(symbol)
             price = stockLookup["price"]
             dict['symbol'] = symbol
             dict['name'] = name
             dict['price'] = price
             data.append(dict)
-
         return data
     else:
         return stocks
