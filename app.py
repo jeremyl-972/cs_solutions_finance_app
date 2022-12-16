@@ -1,38 +1,42 @@
+from dotenv import load_dotenv
 import os
 import datetime
-import time
 
-from cs50 import SQL
-from flask import Flask, flash, redirect, render_template, request, session
+from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_session import Session
-from tempfile import mkdtemp
 from werkzeug.security import check_password_hash, generate_password_hash
+import pymysql
 
 from helpers import apology, login_required, lookup, usd
 
 # Configure application
-app = Flask(__name__)
+load_dotenv()
+application = Flask(__name__)
 
 # Ensure templates are auto-reloaded
-app.config["TEMPLATES_AUTO_RELOAD"] = True
+application.config["TEMPLATES_AUTO_RELOAD"] = True
 
 # Custom filter
-app.jinja_env.filters["usd"] = usd
+application.jinja_env.filters["usd"] = usd
 
 # Configure session to use filesystem (instead of signed cookies)
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
+application.config["SESSION_PERMANENT"] = False
+application.config["SESSION_TYPE"] = "filesystem"
+Session(application)
 
-# Configure CS50 Library to use SQLite database
-db = SQL("sqlite:///finance.db")
+# Configure app to use mysql.connector
+connection = pymysql.connect(
+    host=f'{os.getenv("DB_HOST")}', user=f'{os.getenv("DB_USER")}', passwd=f'{os.getenv("DB_PASSWORD")}', database=f'{os.getenv("DB")}', cursorclass=pymysql.cursors.DictCursor)
+db = connection.cursor()
+
 
 # Make sure API key is set
-if not os.environ.get("API_KEY"):
+if not os.environ.get("IEX_API_KEY"):
     raise RuntimeError("API_KEY not set")
 
 
-@app.after_request
+@application.after_request
 def after_request(response):
     """Ensure responses aren't cached"""
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -41,7 +45,7 @@ def after_request(response):
     return response
 
 
-@app.route("/")
+@application.route("/")
 @login_required
 def index():
     """Show portfolio of stocks"""
@@ -51,10 +55,12 @@ def index():
     stocks = []
     # set variable for total value of stock shares owned
     total = 0
-    sharesList = db.execute("SELECT * FROM shares_owned WHERE userId = ?", id)
+    db.execute("SELECT * FROM shares_owned WHERE userId = %s", id)
+    sharesList = db.fetchall()
     for share in sharesList:
-        row = db.execute(
-            "SELECT symbol, name FROM stocks WHERE id = ?", share["stock_id"])
+        db.execute(
+            "SELECT symbol, name FROM stocks WHERE id = %s", share["stock_id"])
+        row = db.fetchall()
         current = lookup(row[0]["symbol"])
         price = current["price"]
         shares = share["shares"]
@@ -68,14 +74,15 @@ def index():
         stocks.append(dict)
         total = round(total * 100 + product * 100, 2) / 100
     # get user cash balance
-    balanceList = db.execute("SELECT cash FROM users WHERE id = ?", id)
+    db.execute("SELECT cash FROM users WHERE id = %s", id)
+    balanceList = db.fetchall()
     balance = balanceList[0]["cash"]
     total = round(total * 100 + balance * 100, 2) / 100
 
     return render_template("index.html", stocks=stocks, balance=usd(balance), total=usd(total))
 
 
-@app.route("/buy", methods=["GET", "POST"])
+@application.route("/buy", methods=["GET", "POST"])
 @login_required
 def buy():
     """Buy shares of stock"""
@@ -110,7 +117,8 @@ def buy():
 
     stockId = 0
     # get stock id based on symbol
-    stockIdList = db.execute("SELECT id FROM stocks WHERE symbol = ?", symbol)
+    db.execute("SELECT id FROM stocks WHERE symbol = %s", symbol)
+    stockIdList = db.fetchall()
     if not len(stockIdList) == 0:
         stockId = stockIdList[0]["id"]
     else:
@@ -118,7 +126,8 @@ def buy():
 
     # check if user can afford the purchase
     id = session["user_id"]
-    userCashList = db.execute("SELECT cash FROM users WHERE id = ?", id)
+    db.execute("SELECT cash FROM users WHERE id = %s", id)
+    userCashList = db.fetchall()
     if not len(userCashList) == 0:
         userCash = userCashList[0]["cash"]
         stockPrice = stockLookup["price"]
@@ -129,22 +138,24 @@ def buy():
     if userCash > total:
         # update user's cash balance
         balance = round(userCash * 100 - total * 100, 2) / 100
-        db.execute("UPDATE users SET cash = ? WHERE id = ?", balance, id)
+        db.execute("UPDATE users SET cash = %s WHERE id = %s", balance, id)
 
         # record transaction in transactions table
         purchaseDate = datetime.datetime.now()
-        db.execute("INSERT INTO transactions (purchase_date, userID, shares, stock_id, stock_price, total) VALUES (?, ?, ?, ?, ?, ?)",
+        db.execute("INSERT INTO transactions (purchase_date, userID, shares, stock_id, stock_price, total) VALUES (%s, %s, %s, %s, %s, %s)",
                    purchaseDate, id, shares, stockId, stockPrice, total)
 
         # check if stock exists in stocks table and add if not
-        isStock = db.execute("SELECT * FROM stocks WHERE symbol = ?", symbol)
+        db.execute("SELECT * FROM stocks WHERE symbol = %s", symbol)
+        isStock = db.fetchall()
         if len(isStock) == 0:
             db.execute(
-                "INSERT INTO stocks (symbol, name) VALUES (?, ?)", symbol, name)
+                "INSERT INTO stocks (symbol, name) VALUES (%s, %s)", symbol, name)
 
         # check if user exists in shares_owned table
-        userList = db.execute(
-            "SELECT * FROM shares_owned WHERE userId = ?", id)
+        db.execute(
+            "SELECT * FROM shares_owned WHERE userId = %s", id)
+        userList = db.fetchall()
         if not len(userList) == 0:
             # find element
             index = find(userList, "stock_id", stockId)
@@ -153,13 +164,15 @@ def buy():
                 userShares = userList[index]["shares"]
                 shares = shares + userShares
                 db.execute(
-                    "UPDATE shares_owned SET shares= ? WHERE userId = ? AND stock_id = ?", shares, id, stockId)
+                    "UPDATE shares_owned SET shares= %s WHERE userId = %s AND stock_id = %s", shares, id, stockId)
             else:
                 db.execute(
-                    "INSERT INTO shares_owned (userID, stock_id, shares) VALUES (?, ?, ?)", id, stockId, shares,)
+                    "INSERT INTO shares_owned (userID, stock_id, shares) VALUES (%s, %s, %s)", id, stockId, shares,)
         else:
             db.execute(
-                "INSERT INTO shares_owned (userID, stock_id, shares) VALUES (?, ?, ?)", id, stockId, shares,)
+                "INSERT INTO shares_owned (userID, stock_id, shares) VALUES (%s, %s, %s)", id, stockId, shares,)
+        # commit transaction
+        connection.commit()
         # Redirect user to home page
         return redirect("/")
 
@@ -168,7 +181,7 @@ def buy():
         return apology("not enough cash for purchase", 400)
 
 
-@app.route("/history")
+@application.route("/history")
 @login_required
 def history():
     """Show history of transactions"""
@@ -178,14 +191,16 @@ def history():
     userTransactions = []
 
     # get transactions based on user
-    transactions = db.execute(
-        "SELECT * FROM transactions WHERE userID = ?", id)
+    db.execute(
+        "SELECT * FROM transactions WHERE userID = %s", id)
+    transactions = db.fetchall()
     # set dict for each transaction and append to userTransactions
     for transaction in transactions:
         dict = {}
         dict["type"] = transaction["type"]
-        symbol = db.execute(
-            "SELECT symbol FROM stocks WHERE id = ?", transaction["stock_id"])
+        db.execute(
+            "SELECT symbol FROM stocks WHERE id = %s", transaction["stock_id"])
+        symbol = db.fetchall()
         dict["symbol"] = symbol[0]["symbol"]
         amount = usd(transaction["total"])
         dict["amount"] = amount
@@ -197,10 +212,9 @@ def history():
         userTransactions.append(dict)
 
     return render_template("history.html", transactions=userTransactions)
-    return apology("TODO")
 
 
-@app.route("/login", methods=["GET", "POST"])
+@application.route("/login", methods=["GET", "POST"])
 def login():
     """Log user in"""
 
@@ -219,8 +233,10 @@ def login():
             return apology("must provide password", 400)
 
         # Query database for username
-        rows = db.execute("SELECT * FROM users WHERE username = ?",
-                          request.form.get("username"))
+        db.execute("SELECT * FROM users WHERE username = %s",
+                   request.form.get("username"))
+        rows = db.fetchall()
+        print(rows)
 
         # Ensure username exists and password is correct
         if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
@@ -237,7 +253,7 @@ def login():
         return render_template("login.html")
 
 
-@app.route("/logout")
+@application.route("/logout")
 def logout():
     """Log user out"""
 
@@ -248,7 +264,7 @@ def logout():
     return redirect("/")
 
 
-@app.route("/quote", methods=["GET", "POST"])
+@application.route("/quote", methods=["GET", "POST"])
 @login_required
 def quote():
     """Get stock quote."""
@@ -270,7 +286,7 @@ def quote():
     return render_template("quoted.html", name=stockLookup["name"], price=usd(stockLookup["price"]), symbol=stockLookup["symbol"])
 
 
-@app.route("/register", methods=["GET", "POST"])
+@application.route("/register", methods=["GET", "POST"])
 def register():
     """Register user"""
     # Forget any user_id
@@ -291,14 +307,15 @@ def register():
         elif not confirmation == password:
             return apology("password must match", 400)
         # Query database for username
-        elif db.execute("SELECT * FROM users WHERE username = ?", username):
+        elif db.execute("SELECT * FROM users WHERE username = %s", username):
             return apology("username already exists", 400)
         # Add user to database
         else:
             hash = generate_password_hash(
                 password, method='pbkdf2:sha256', salt_length=8)
             db.execute(
-                "INSERT INTO users (username, hash) VALUES(?, ?)", username, hash)
+                "INSERT INTO users (username, hash) VALUES(%s, %s)", username, hash)
+            connection.commit()
 
         # Redirect user to login page
         return redirect("/login")
@@ -308,7 +325,7 @@ def register():
         return render_template("register.html")
 
 
-@app.route("/sell", methods=["GET", "POST"])
+@application.route("/sell", methods=["GET", "POST"])
 @login_required
 def sell():
     """Sell shares of stock"""
@@ -318,7 +335,8 @@ def sell():
     # get user id
     id = session["user_id"]
     # get user's shares info
-    sharesList = db.execute("SELECT * FROM shares_owned WHERE userID = ?", id)
+    db.execute("SELECT * FROM shares_owned WHERE userID = %s", id)
+    sharesList = db.fetchall()
 
     # get stock symbols
     userShares = []
@@ -326,8 +344,9 @@ def sell():
         dict = {}
         # get symbol
         stockId = share["stock_id"]
-        stockSymbolList = db.execute(
-            "SELECT symbol FROM stocks WHERE id = ?", stockId)
+        db.execute(
+            "SELECT symbol FROM stocks WHERE id = %s", stockId)
+        stockSymbolList = db.fetchall()
         stockSymbol = stockSymbolList[0]["symbol"]
         # add to dict key/val pair for symbol
         dict["symbol"] = stockSymbol
@@ -346,8 +365,9 @@ def sell():
     # get selected option value
     symbol = request.form.get("select")
     # check if option is valid symbol
-    validStock = db.execute(
-        "SELECT id, symbol FROM stocks WHERE symbol = ?", symbol)
+    db.execute(
+        "SELECT id, symbol FROM stocks WHERE symbol = %s", symbol)
+    validStock = db.fetchall()
     if not validStock:
         return apology("Select a valid stock")
 
@@ -363,8 +383,9 @@ def sell():
     # UPDATE SHARES_OWNED TABLE:
     # get user's share info
     stockId = validStock[0]["id"]
-    userShare = db.execute(
-        "SELECT * FROM shares_owned WHERE userID = ? AND stock_id = ?", id, stockId)
+    db.execute(
+        "SELECT * FROM shares_owned WHERE userID = %s AND stock_id = %s", id, stockId)
+    userShare = db.fetchall()
 
     # check shares do not exceed owned shares
     owned_shares = userShare[0]["shares"]
@@ -375,35 +396,39 @@ def sell():
     stockLookup = lookup(validStock[0]["symbol"])
     stockPrice = stockLookup["price"]
     total = round((stockPrice * 100) * (sharesToSell * 100), 2) / 10000
-    cashQuery = db.execute("SELECT cash FROM users WHERE id = ?", id)
+    db.execute("SELECT cash FROM users WHERE id = %s", id)
+    cashQuery = db.fetchall()
     balance = cashQuery[0]["cash"]
     cash = round((balance * 100) + (total * 100), 2) / 100
-    db.execute("UPDATE users SET cash = ? WHERE id = ?", cash, id)
+    db.execute("UPDATE users SET cash = %s WHERE id = %s", cash, id)
 
     # update transactions table
     purchaseDate = datetime.datetime.now()
-    db.execute("INSERT INTO transactions (purchase_date, userID, shares, stock_id, stock_price, total, type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    db.execute("INSERT INTO transactions (purchase_date, userID, shares, stock_id, stock_price, total, type) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                purchaseDate, id, sharesToSell, stockId, stockPrice, total, "Sell")
 
     # if shares matches owned shares, remove stock row from shares owned table
     if sharesToSell == owned_shares:
         db.execute(
-            "DELETE FROM shares_owned WHERE userID = ? AND stock_id = ?", id, stockId)
+            "DELETE FROM shares_owned WHERE userID = %s AND stock_id = %s", id, stockId)
     # update owned shares
     shares = owned_shares - sharesToSell
     db.execute(
-        "UPDATE shares_owned SET shares = ? WHERE userID = ? AND stock_id = ?", shares, id, stockId)
+        "UPDATE shares_owned SET shares = %s WHERE userID = %s AND stock_id = %s", shares, id, stockId)
 
+    # commit transaction
+    connection.commit()
     # Redirect user to home page
     return redirect("/")
 
 
-@app.route("/search")
+@application.route("/search")
 def search():
     input = request.args.get("q")
     # send q to database and get all stocks LIKE q
-    stocks = db.execute(
-        "SELECT * FROM stocks WHERE symbol LIKE ? LIMIT ?", input + "%", 100)
+    db.execute(
+        "SELECT * FROM stocks WHERE symbol LIKE %s LIMIT %s", input + "%", 100)
+    stocks = db.fetchall()
 
     if not stocks:
         return stocks
@@ -418,11 +443,11 @@ def search():
     if len(stocks) > 1 and index >= 0:
         dict = {}
         dict = setDict(selectedStock)
-        data.append(dict)
+        data.applicationend(dict)
         # slice off duplicate stock (already in selectedStock)
         stocks.pop(0)
         for stock in stocks:
-            data.append(stock)
+            data.applicationend(stock)
         return data
     # if query contains multiple items
     if len(stocks) > 1:
@@ -432,21 +457,23 @@ def search():
     elif len(stocks) == 1:
         stock = stocks[0]
         dict = setDict(stock)
-        data.append(dict)
+        data.applicationend(dict)
         return data
 
 
-@app.route("/shares")
+@application.route("/shares")
 @login_required
 def getShares():
     id = session["user_id"]
     symbol = request.args.get("q")
     # get symbol id
-    symbol_idList = db.execute(
-        "SELECT id FROM stocks WHERE symbol = ?", symbol)
+    db.execute(
+        "SELECT id FROM stocks WHERE symbol = %s", symbol)
+    symbol_idList = db.fetchall()
     symbol_id = symbol_idList[0]["id"]
-    sharesList = db.execute(
-        "SELECT shares FROM shares_owned WHERE userID = ? AND stock_id = ?", id, symbol_id)
+    db.execute(
+        "SELECT shares FROM shares_owned WHERE userID = %s AND stock_id = %s", id, symbol_id)
+    sharesList = db.fetchall()
     shares = sharesList[0]["shares"]
     print(shares)
     return [shares]

@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 import os
 import requests
 import urllib.parse
@@ -37,10 +38,10 @@ def login_required(f):
 
 def lookup(symbol):
     """Look up quote for symbol."""
-
+    load_dotenv()
     # Contact API
     try:
-        api_key = os.environ.get("API_KEY")
+        api_key = os.environ.get("IEX_API_KEY")
         url = f"https://cloud.iexapis.com/stable/stock/{urllib.parse.quote_plus(symbol)}/quote?token={api_key}"
         response = requests.get(url)
         response.raise_for_status()

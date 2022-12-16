@@ -1,32 +1,31 @@
-CREATE DATABASE finance;
-
-CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, username TEXT NOT NULL, hash TEXT NOT NULL, cash NUMERIC NOT NULL DEFAULT 10000.00);
-CREATE TABLE sqlite_sequence(name,seq);
-CREATE UNIQUE INDEX username ON users (username);
-
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    hash VARCHAR(100) NOT NULL,
+    cash FLOAT NOT NULL DEFAULT 10000.00
+);
 CREATE TABLE stocks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL ,
+    id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     symbol NOT NULL,
-    name TEXT NOT NULL,
-    exchange TEXT);
-
+    name VARCHAR(100) NOT NULL,
+    exchange VARCHAR(100)
+);
 CREATE TABLE purchases (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        purchase_date TIMESTAMP NOT NULL,
-        userID INTEGER NOT NULL,
-        shares INTEGER NOT NULL,
-        stock_id INTEGER NOT NULL,
-        stock_price REAL NOT NULL,
-        total REAL NOT NULL,
-        FOREIGN KEY (userID) REFERENCES users(id),
-        FOREIGN KEY (stock_id) REFERENCES stocks(id)
-    );
-
+    id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    purchase_date TIMESTAMP NOT NULL,
+    userID INT NOT NULL,
+    shares INT NOT NULL,
+    stock_id INT NOT NULL,
+    stock_price FLOAT NOT NULL,
+    total FLOAT NOT NULL,
+    FOREIGN KEY (userID) REFERENCES users(id),
+    FOREIGN KEY (stock_id) REFERENCES stocks(id)
+);
 CREATE TABLE shares_owned (
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    userID INTEGER NOT NULL,
-    stock_id INTEGER NOT NULL,
-    shares INTEGER NOT NULL,
+    id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    userID INT NOT NULL,
+    stock_id INT NOT NULL,
+    shares INT NOT NULL,
     FOREIGN KEY (userID) REFERENCES users(id),
     FOREIGN KEY (stock_id) REFERENCES stocks(id)
 );
