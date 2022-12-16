@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Portfolio
+{% endblock %}
+
+{% block main %}
+
+<h3 class="pb-5" style="text-align: left">Your Holdings</h3>
+
+<section class="center-up-flex-column">
+    <div id="spinner" class="spinner-border text-primary" role="status"></div>
+
+    <table hidden id="indexTable" class="table w-75">
+        <thead>
+            <tr id="indexTheaders">
+                <!-- insert stocks owned, # of shares, current price, and total value -->
+                <th scope="col">Stock</th>
+                <th scope="col" class="text-center">Shares Owned</th>
+                <th scope="col" class="text-center">Current Price</th>
+                <th scope="col" class="text-center">Total Value</th>
+            </tr>
+        </thead>
+
+        <tbody id="indexTbody">
+            {% for stock in stocks %}
+            <tr>
+                <td>{{stock.name}}</td>
+                <td class="text-center">{{stock.shares}}</td>
+                <td class="text-center">{{stock.price | usd}}</td>
+                <td class="text-center">{{stock.product | usd}}</td>
+            </tr>
+            {% endfor %}
+            <!-- insert users cash balance, and grand total of assets -->
+            <tr>
+                <td scope="row" colspan="2" style="border-bottom: none;"></td>
+                <th class="text-center">Cash Balance</th>
+                <td class="text-center">{{balance}}</td>
+            </tr>
+            <tr>
+                <td scope="row" colspan="2" style="border-bottom: none;"></td>
+                <th class="text-center">Total Assets</th>
+                <td class="text-center">{{total}}</td>
+            </tr>
+        </tbody>
+
+    </table>
+</section>
+
+<script>
+    let spinner = document.querySelector("#spinner");
+    let table = document.querySelector("#indexTable");
+    let headers = document.querySelector("#indexTheaders");
+    let data = JSON.parse('{{ stocks | tojson }}');
+
+    window.onload = async (event) => {
+        spinner.setAttribute("hidden", "hidden")
+        if (data.length === 0) {
+            headers.innerHTML = "";
+            let thRow = document.createElement("th");
+            thRow.setAttribute("scope", "col-4");
+            thRow.innerText = "No Stocks Yet";
+            headers.appendChild(thRow);
+        }
+        table.removeAttribute("hidden")
+    };
+</script>
+{% endblock %}
