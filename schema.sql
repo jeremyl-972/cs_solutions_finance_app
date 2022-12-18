@@ -29,3 +29,16 @@ CREATE TABLE shares_owned (
     FOREIGN KEY (userID) REFERENCES users(id),
     FOREIGN KEY (stock_id) REFERENCES stocks(id)
 );
+
+CREATE TABLE transactions (
+    id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    purchase_date TIMESTAMP NOT NULL,
+    userID INT NOT NULL,
+    shares INT NOT NULL,
+    stock_id INT NOT NULL,
+    stock_price FLOAT NOT NULL,
+    total FLOAT NOT NULL, 
+    type VARCHAR(4) DEFAULT 'Buy',
+    FOREIGN KEY (userID) REFERENCES users(id),
+    FOREIGN KEY (stock_id) REFERENCES stocks(id)
+);

@@ -1,131 +1,234 @@
 {% extends "layout.html" %}
 
 {% block title %}
-Buy
+    Buy
 {% endblock %}
 
 {% block main %}
-<h3 class="pb-5" style="text-align: left">Buy A Stock</h3>
-<form class="center-up-flex-row mb-4" action="/buy" method="post">
-    <div class="form-group prt-3">
-        <label class="mb-1" for="symbol">Select stock</label>
-        <input autocomplete="off" autofocus class="form-control" id="symbol" name="symbol" placeholder="Symbol"
-            type="text">
-    </div>
-    <div class="form-group prt-3">
-        <label class="mb-1" for="shares">Select shares</label>
-        <input autocomplete="off" class="form-control" id="shares" name="shares" min="1"
-            oninput="validity.valid||(value='');" placeholder="Shares" type="number">
-    </div>
-    <button class="btn btn-primary" style="position:relative; bottom: -13px" type="submit">Buy Stock</button>
-</form>
+    <h3 class="pb-5" style="text-align: left">Buy A Stock</h3>
+    <form class="center-up-flex-row mb-4" action="/buy" method="post">
+        <div class="form-group prt-3">
+            <label class="mb-1" for="symbol">Select stock</label>
+            <input autocomplete="off" autofocus class="form-control" id="symbol" name="symbol" placeholder="Symbol" type="text">
+        </div>
+        <div class="form-group prt-3">
+            <label class="mb-1" for="shares">Select shares</label>
+            <input style="width: 92px;" autocomplete="off" class="form-control" id="shares" name="shares" min="1" oninput="validity.valid||(value='');" type="number">
+        </div>
+        <button disabled id="buyBtn" onclick="toggle('buyBtn', 'loadingBtn');" class="btn btn-primary" style="position:relative; bottom: -13px; width:120px" type="submit">Buy Stock</button>
+        <button hidden id="loadingBtn" class="btn btn-primary" style="position:relative; bottom: -13px; width:120px" type="button" disabled>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Loading...
+        </button>
+    </form>
 
-<section class="center-up-flex-column">
-    <table class="table w-75">
-        <thead>
-            <tr id="theaders">
+    <section class="center-up-flex-column">
+        <div hidden id="spinner" class="spinner-border text-primary" role="status"></div>
+
+        <table hidden id="buyTable" class="table w-75">
+            <thead>
+              <tr id="buyTheaders">
                 <!-- insert symbol, name, shares, price, and total dynamically -->
-            </tr>
-        </thead>
+              </tr>
+            </thead>
 
-        <tbody id="tbody">
-            <!-- insert data dynamically -->
-        </tbody>
+            <tbody id="buyTbody">
+                <!-- insert data dynamically -->
+            </tbody>
 
-    </table>
-</section>
+        </table>
+    </section>
 
-<script>
-    let symbolInput = document.querySelector("#symbol");
-    let sharesInput = document.querySelector("#shares");
-    sharesInput.value = 1;
-    let tbody = document.querySelector('#tbody');
+    <script>
+        // set up variables to access dom elements
+        let symbolInput = document.querySelector("#symbol");
+        let sharesInput = document.querySelector("#shares");
+        sharesInput.value = 1;
+        let spinner = document.querySelector('#spinner');
+        let table = document.querySelector('#buyTable');
+        let tbody = document.querySelector('#buyTbody');
+        let headers = document.querySelector('#buyTheaders');
+        let timer;
 
-    symbolInput.addEventListener("input", async () => {
-        // clear table body
-        tbody.innerHTML = "";
-        if (!symbolInput.value) return;
-        // query database to get symbol
-        let response = await fetch("/search?q=" + symbolInput.value)
-        let stocks = await response.json();
-
-        if (stocks.length != 1) {
-            // clear headers --> set symbol and name headers
-            let headers = document.querySelector("#theaders");
+        // listen to symbol input
+        symbolInput.addEventListener("input", async (e) => {
+            // stop all actions under timer during user input typing
+            clearTimeout(timer);
+            // disable buy button, and clear headers and tbody
+            const buyBtn = document.getElementById('buyBtn');
+            buyBtn.setAttribute('disabled', 'disabled');
             headers.innerHTML = "";
-            let thSymbol = makeColumn("Symbol");
-            let thName = makeColumn("Name");
-            headers.append(thSymbol, thName);
+            buyTbody.innerHTML = ""
+            // get input value
+            const inputValue = e.currentTarget.value.toUpperCase();
 
-            // populate table body
-            for (stock in stocks) {
-                // create element for each symbol and name data-cell
-                let tdSymbol = document.createElement("td");
-                let tdName = document.createElement("td");
-                // get from backend
-                tdSymbol.innerHTML = stocks[stock].symbol;
-                tdName.innerHTML = stocks[stock].name;
+            // wait for user input
+            timer = setTimeout(async () => {
+                symbolInput.setAttribute("disabled", "disabled");
+                if (!inputValue) {
+                    symbolInput.removeAttribute("disabled");
+                    return;
+                }
 
-                let tr = document.createElement("tr")
-                tr.append(tdSymbol, tdName);
-                tbody.appendChild(tr);
+                // display spinner
+                spinner.removeAttribute("hidden")
+
+                let stocks;
+                // query database to get stocks
+                try {
+                    const response = await fetch("/search?q=" + inputValue);
+                    stocks = await response.json();
+                } catch (error) {
+                    console.log(error);
+                }
+
+                // create table columns for use where needed
+                let thSymbol = makeColumn("Symbol");
+                let thName = makeColumn("Name");
+                let thPrice = makeColumn("Price");
+                let thShares = makeColumn("Shares");
+                thShares.classList.add("text-center");
+                let thTotal = makeColumn("Total");
+
+                if (stocks.length === 0) {
+                    spinner.setAttribute("hidden", "hidden")
+                    symbolInput.removeAttribute("disabled");
+                    return
+                }
+
+                if (stocks.length > 1) {
+                    // set symbol and name headers
+                    headers.append(thSymbol, thName);
+
+                    // populate table body
+                    for (stock in stocks) {
+                        // create element for each symbol and name data-cell
+                        let tdSymbol = makeCell(stocks[stock].symbol);
+                        let tdName = makeCell(stocks[stock].name);
+
+                        let tr = makeTableRow(tdSymbol, tdName)
+                        buyTbody.appendChild(tr);
+                    }
+                    spinner.setAttribute("hidden", "hidden")
+                    buyTable.removeAttribute("hidden")
+                }
+
+                if (stocks[0].price && stocks.length > 1) {
+                    spinner.removeAttribute("hidden")
+
+                    // set symbol input value to complete symbol
+                    symbolInput.value = stocks[0]["symbol"];
+
+                    // set table body --> get values from backend
+                    // create element for each data-cell
+                    let tdSymbol = makeCell(stocks[0].symbol);
+                    let tdName = makeCell(stocks[0].name);
+                    let tdPrice = makeCell(USDollar.format(stocks[0].price));
+                    // populate shares field from document
+                    let tdShares = makeCell(sharesInput.value);
+                    tdShares.classList.add("text-center");
+                    // calculate total --> price * shares
+                    let tdTotal = document.createElement("td");
+                    let total = Math.round(sharesInput.value * 100 * stocks[0].price * 100) / 10000;
+                    tdTotal.innerHTML = USDollar.format(total);
+                    tdTotal.style.width = "120px";
+
+                    // set initial row with static shares value
+                    firstRow = document.getElementById("buyTbody").firstChild;
+                    firstRow.append(tdPrice, tdShares, tdTotal);
+
+                    spinner.setAttribute("hidden", "hidden");
+                    // render headers and row
+                    headers.append(thPrice, thShares, thTotal);
+                    buyTable.removeAttribute("hidden");
+
+                    // render row with dynamic shares value
+                    sharesInput.addEventListener("input", (e) => sharesChanges(e, buyTbody, tdSymbol, tdName, tdPrice, tdShares, tdTotal, stocks));
+
+                    // enable buy button
+                    buyBtn.removeAttribute('disabled');
+                }
+
+                if (stocks.length == 1) {
+                    spinner.removeAttribute("hidden")
+                    // clear tbody
+                    buyTbody.innerHTML = ""
+
+                    // set symbol input value to complete symbol
+                    symbolInput.value = stocks[0]["symbol"];
+
+                    // set table body --> get values from backend
+                    // create element for each data-cell
+                    let tdSymbol = makeCell(stocks[0].symbol);
+                    let tdName = makeCell(stocks[0].name);
+                    let tdPrice = makeCell(USDollar.format(stocks[0].price));
+                    // populate shares field from document
+                    let tdShares = makeCell(sharesInput.value);
+                    tdShares.classList.add("text-center");
+                    // calculate total --> price * shares
+                    let tdTotal = document.createElement("td");
+                    let total = Math.round(sharesInput.value * 100 * stocks[0].price * 100) / 10000;
+                    tdTotal.innerHTML = USDollar.format(total);
+                    tdTotal.style.width = "120px";
+
+                    // set initial row with static shares value
+                    let tr = makeTableRow(tdSymbol, tdName, tdPrice, tdShares, tdTotal)
+                    buyTbody.appendChild(tr);
+
+                    spinner.setAttribute("hidden", "hidden");
+                    // render headers and row
+                    headers.append(thSymbol, thName, thPrice, thShares, thTotal);
+                    buyTable.removeAttribute("hidden");
+
+                    // render row with dynamic shares value
+                    sharesInput.addEventListener("input", (e) => sharesChanges(e, buyTbody, tdSymbol, tdName, tdPrice, tdShares, tdTotal, stocks));
+
+                    // enable buy button
+                    buyBtn.removeAttribute('disabled');
+                }
+                symbolInput.removeAttribute("disabled");
+                symbolInput.focus();
+
+            }, 750);
+        });
+
+        function makeColumn(text) {
+            th = document.createElement("th");
+            th.innerHTML = text;
+            th.setAttribute("scope", "col");
+            return th;
+        }
+        function makeCell(value) {
+            td = document.createElement("td");
+            td.innerHTML = value;
+            return td;
+        }
+        function makeTableRow() {
+            tr = document.createElement("tr");
+            for (let i = 0; i < arguments.length; i++) {
+                tr.append(arguments[i]);
             }
+            return tr;
         }
-        else {
-            // set table headers
-            let headers = document.querySelector("#theaders");
-            let thShares = makeColumn("Shares");
-            let thPrice = makeColumn("Price");
-            let thTotal = makeColumn("Total");
-            headers.append(thShares, thPrice, thTotal);
+        function sharesChanges(e, buyTbody, tdSymbol, tdName, tdPrice, tdShares, tdTotal, stocks){
+            // clear tbody
+            buyTbody.innerHTML = "";
 
-            // populate table body
-            // create element for each data-cell
-            let tdSymbol = document.createElement("td");
-            let tdName = document.createElement("td");
-            let tdPrice = document.createElement("td");
-            let tdShares = document.createElement("td");
-            let tdTotal = document.createElement("td");
-            // get from backend
-            tdSymbol.innerHTML = stocks[0].symbol;
-            tdName.innerHTML = stocks[0].name;
-            tdPrice.innerHTML = stocks[0].price;
-            // populate shares field from document
-            tdShares.innerHTML = sharesInput.value;
+            // populate shares field from listener
+            tdShares.innerHTML = e.currentTarget.value;
             // calculate price * shares
-            let total = sharesInput.value * stocks[0].price;
-            tdTotal.innerHTML = total;
-            tdTotal.style.width = "120px";
-
-            // send as static row
-            let tr = document.createElement("tr")
-            tr.append(tdSymbol, tdName, tdPrice, tdShares, tdTotal);
-            tbody.appendChild(tr);
-
-            // send as dynamic row
-            sharesInput.addEventListener("input", () => {
-                // clear table body
-                tbody.innerHTML = "";
-                // populate shares field from listener
-                tdShares.innerHTML = sharesInput.value;
-                // calculate price * shares
-                let total = sharesInput.value * stocks[0].price;
-                tdTotal.innerHTML = total;
-
-                let tr = document.createElement("tr")
-                tr.append(tdSymbol, tdName, tdPrice, tdShares, tdTotal);
-                tbody.appendChild(tr);
-            });
+            let total = Math.round(sharesInput.value * 100 * stocks[0].price * 100) / 10000;
+            tdTotal.innerHTML = USDollar.format(total);
+            let tr = makeTableRow(tdSymbol, tdName, tdPrice, tdShares, tdTotal)
+            buyTbody.appendChild(tr);
         }
-    });
 
-    function makeColumn(text) {
-        th = document.createElement("th");
-        th.innerHTML = text;
-        th.setAttribute("scope", "col");
-        return th;
-    }
+        // https://www.freecodecamp.org/news/how-to-format-number-as-currency-in-javascript-one-line-of-code/
+        // Format the prices above to USD using the locale, style, and currency.
+        let USDollar = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+        });
 
-</script>
-
+      </script>
 {% endblock %}

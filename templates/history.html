@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    History
+{% endblock %}
+
+{% block main %}
+    <h3 class="pb-5" style="text-align: left">Your Transactions</h3>
+
+    <section class="center-up-flex-column">
+        <div id="historySpinner" class="spinner-border text-primary" role="status"></div>
+
+        <table hidden id="historyTable" class="table w-75">
+            <thead>
+              <tr id="historyTheaders">
+                <th scope="col" class="text-center">Type</th>
+                <th scope="col" class="text-center">Symbol</th>
+                <th scope="col" class="text-center">Shares</th>
+                <th scope="col" class="text-center">Total Amount</th>
+                <th scope="col" class="text-center">Date</th>
+                <th scope="col" class="text-center">Time</th>
+              </tr>
+            </thead>
+
+            <tbody id="historyTbody">
+                {% for transaction in transactions %}
+                <tr id="historyTbodyRow">
+                    <td class="text-center">{{transaction.type}}</td>
+                    <td class="text-center">{{transaction.symbol}}</td>
+                    <td class="text-center">{{transaction.shares}}</td>
+                    <td class="text-center">{{transaction.amount}}</td>
+                    <td class="text-center">{{transaction.date}}</td>
+                    <td class="text-center">{{transaction.time}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+          </table>
+    </section>
+
+    <script>
+        let spinner = document.querySelector("#historySpinner");
+        let table = document.querySelector("#historyTable");
+        let headers = document.querySelector("#historyTheaders");
+        let data = JSON.parse('{{ transactions | tojson }}');
+        let tdTypesNodeList = document.querySelectorAll("#tdType");
+        let historyTbodyRowList = document.querySelectorAll("#historyTbodyRow");
+
+        window.onload = async (event) => {
+            console.log(historyTbodyRowList)
+            historyTbodyRowList.forEach((row) => {
+                firstChild = row.children[0]
+                fourthChild = row.children[3]
+
+                if (firstChild.innerHTML === "Buy") {
+                    firstChild.classList.add("text-danger");
+                    fourthChild.classList.add("text-danger");
+                }
+                if (firstChild.innerHTML === "Sell") {
+                    firstChild.classList.add("text-success");
+                    fourthChild.classList.add("text-success");
+                }
+            })
+
+            spinner.setAttribute("hidden", "hidden")
+            if (data.length === 0) {
+                headers.innerHTML = "";
+                let thRow = document.createElement("th");
+                thRow.setAttribute("scope", "col-4");
+                thRow.innerText = "No Transactions Yet";
+                headers.appendChild(thRow);
+            }
+            table.removeAttribute("hidden")
+        };
+    </script>
+{% endblock %}

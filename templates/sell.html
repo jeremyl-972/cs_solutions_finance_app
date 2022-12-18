@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Sell
+{% endblock %}
+
+{% block main %}
+    <h3 class="pb-5" style="text-align: left">Sell A Stock</h3>
+    <form id="sellForm" class="center-up-flex-row mb-4" action="/sell" method="post">
+        <div class="center-up-flex-row mb-4">
+            <div class="form-group prt-3">
+                <label class="mb-1" for="select">Select Stock</label>
+                <select id="select" name="select" class="form-select" type="select" aria-label="stock select dropdown">
+                    <option value="">--none--</option>
+                    {% for share in userShares %}
+                    <option>{{share["symbol"]}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group prt-3">
+                <label class="mb-1" for="shares">Select shares</label>
+                <div class="center-up-flex-row">
+                    <input disabled style="width: 100px;" autocomplete="off" class="form-control" id="shares" name="shares" min="1" oninput="validity.valid||(value='');" type="number">
+                    <div class="input-group-text" style="width: 67px; padding: 6px 4px;">Max:
+                        <span hidden id="maxElement" role="status"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button disabled id="sellBtn" onclick="toggle('sellBtn', 'sellLoadingBtn');" class="btn btn-primary" style="position:relative; bottom: -1.5px; width:120px" type="submit">Sell Stock</button>
+        <button hidden id="sellLoadingBtn" class="btn btn-primary" style="position:relative; bottom: -1.5px; width:120px" type="button" disabled>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Loading...
+        </button>
+    </form>
+
+    <script>
+        let select = document.getElementById("select");
+        let shares = document.getElementById("shares");
+        shares.value = 1;
+        let maxElement = document.getElementById("maxElement");
+        let sellBtn = document.getElementById("sellBtn");
+
+        select.addEventListener("input", async (e) => {
+            maxElement.setAttribute('class', 'ms-1 spinner-border spinner-border-sm text-primary');
+            maxElement.removeAttribute('hidden');
+            let selectedValue = e.currentTarget.value
+            if (!selectedValue) {
+                shares.value = 1;
+                sellBtn.setAttribute('disabled', 'disabled');
+                shares.setAttribute('disabled', 'disabled');
+                maxElement.innerHTML = "";
+                maxElement.setAttribute('hidden', 'hidden')
+            }
+            let selectedValueShares;
+            // query database to get # of shares
+            if (selectedValue) {
+                console.log(select.value)
+                maxElement.innerHTML = "";
+                maxElement.setAttribute('class', 'ms-1 spinner-border spinner-border-sm text-primary');
+                maxElement.removeAttribute('hidden');
+                try {
+                    const response = await fetch("/shares?q=" + selectedValue);
+                    selectedValueShares = await response.json();
+                } catch (error) {
+                    console.log(error);
+                }
+                shares.setAttribute("max", selectedValueShares[0])
+                shares.removeAttribute('disabled');
+                maxElement.setAttribute('class', 'ms-2');
+                maxElement.innerHTML = selectedValueShares[0];
+                sellBtn.removeAttribute('disabled');
+            }
+        });
+
+    </script>
+{% endblock %}
