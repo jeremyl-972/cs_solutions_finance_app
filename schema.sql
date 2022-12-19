@@ -6,7 +6,7 @@ CREATE TABLE users (
 );
 CREATE TABLE stocks (
     id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
-    symbol NOT NULL,
+    symbol VARCHAR(25) NOT NULL,
     name VARCHAR(100) NOT NULL,
     exchange VARCHAR(100)
 );

@@ -1,3 +1,14 @@
+In short, this is a Python Flask application that is hosted by aws and using was rds for the database.
+The stock trader app registers users. Each user gets an initial $10,000 to "spend".
+Users can get a quote, buy, and sell stocks. 
+My special features are:
+    --- a dynamic search written in javascript that calls an api on the backend to return the names of stocks that have matching characters, and the name, price, number of shares selected, and total cost of the stock that has an exact match to the search query. Once there is an exact match, the buy button is enabled and changing the number of shares will manipulate the total cost of the purchase.
+    --- the sell page will have a dropdown of the stocks the user owns. the user can only select up to the displayed max shares to sell, which is the number of shares the user owns
+    --- the history page lists the users transactions and displays the "buys" in red, indicating withdrawals, and "sells" in green, indicating positive transactions
+
+Note: Deploying, setting up a remote db, and the use of pymysql were not part of the assignment
+
+The base assignment was as follows: 
 # cs_solutions_finance_app
 
 Implement a website via which users can “buy” and “sell” stocks.
