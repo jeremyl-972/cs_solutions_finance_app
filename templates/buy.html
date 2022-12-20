@@ -9,7 +9,7 @@
     <section class="center-up-flex-column">
         <form id="buyForm" action="/buy" method="post">
             <div class="center-up-flex-row mb-4">
-                <div class="form-group prt-3 w-100">
+                <div class="form-group prt-3">
                     <label class="mb-1" for="symbol">Select stock</label>
                     <input autocomplete="off" autofocus class="form-control" id="symbol" name="symbol" placeholder="Symbol" type="text">
                 </div>
@@ -18,8 +18,8 @@
                     <input style="width: 92px;" autocomplete="off" class="form-control" id="shares" name="shares" min="1" oninput="validity.valid||(value='');" type="number">
                 </div>
             </div>
-            <button disabled id="buyBtn" onclick="toggle('buyBtn', 'loadingBtn');" class="btn btn-primary" style="position:relative; bottom: -13px; width:120px" type="submit">Buy Stock</button>
-            <button hidden id="loadingBtn" class="btn btn-primary" style="position:relative; bottom: -13px; width:120px" type="button" disabled>
+            <button disabled id="buyBtn" onclick="toggle('buyBtn', 'loadingBtn');" class="btn btn-primary" style="width:120px" type="submit">Buy Stock</button>
+            <button hidden id="loadingBtn" class="btn btn-primary" style="width:120px" type="button" disabled>
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 Loading...
             </button>
