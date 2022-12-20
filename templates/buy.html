@@ -6,9 +6,9 @@
 
 {% block main %}
     <h3 class="pb-5" style="text-align: left">Buy A Stock</h3>
-    <section class="center-up-flex-column">
+    <section class="center-up-flex-column mb-4">
         <form id="buyForm" action="/buy" method="post">
-            <div class="center-up-flex-row mb-4">
+            <div class="center-up-flex-row mb-3">
                 <div class="form-group prt-3 w-100">
                     <label class="mb-1" for="symbol">Select stock</label>
                     <input autocomplete="off" autofocus class="form-control" id="symbol" name="symbol" placeholder="Symbol" type="text">
@@ -29,15 +29,15 @@
     <section class="center-up-flex-column">
         <div hidden id="spinner" class="spinner-border text-primary" role="status"></div>
 
-        <table hidden id="buyTable" class="table w-75">
+        <table hidden id="buyTable" class="table small">
             <thead>
               <tr id="buyTheaders">
-                <!-- insert symbol, name, shares, price, and total dynamically -->
+                <!-- dynamically insert symbol, name, shares, price, and total -->
               </tr>
             </thead>
 
             <tbody id="buyTbody">
-                <!-- insert data dynamically -->
+                <!-- dynamically insert data -->
             </tbody>
 
         </table>
