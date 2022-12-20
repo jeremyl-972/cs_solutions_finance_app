@@ -11,40 +11,42 @@ Portfolio
 <section class="center-up-flex-column">
     <div id="spinner" class="spinner-border text-primary" role="status"></div>
 
-    <table hidden id="indexTable" class="table w-75">
-        <thead>
-            <tr id="indexTheaders">
-                <!-- insert stocks owned, # of shares, current price, and total value -->
-                <th scope="col">Stock</th>
-                <th scope="col" class="text-center">Shares Owned</th>
-                <th scope="col" class="text-center">Current Price</th>
-                <th scope="col" class="text-center">Total Value</th>
-            </tr>
-        </thead>
-
-        <tbody id="indexTbody">
-            {% for stock in stocks %}
-            <tr>
-                <td>{{stock.name}}</td>
-                <td class="text-center">{{stock.shares}}</td>
-                <td class="text-center">{{stock.price}}</td>
-                <td class="text-center">{{stock.product}}</td>
-            </tr>
-            {% endfor %}
-            <!-- insert users cash balance, and grand total of assets -->
-            <tr>
-                <td scope="row" colspan="2" style="border-bottom: none;"></td>
-                <th class="text-center">Cash Balance</th>
-                <td class="text-center">{{balance}}</td>
-            </tr>
-            <tr>
-                <td scope="row" colspan="2" style="border-bottom: none;"></td>
-                <th class="text-center">Total Assets</th>
-                <td class="text-center">{{total}}</td>
-            </tr>
-        </tbody>
-
-    </table>
+    <div class="table-responsive w-100">
+        <table hidden id="indexTable" class="table small">
+            <thead>
+                <tr id="indexTheaders">
+                    <!-- insert stocks owned, # of shares, current price, and total value -->
+                    <th scope="col">Stock</th>
+                    <th scope="col" class="text-center">Shares Owned</th>
+                    <th scope="col" class="text-center">Current Price</th>
+                    <th scope="col" class="text-center">Total Value</th>
+                </tr>
+            </thead>
+    
+            <tbody id="indexTbody">
+                {% for stock in stocks %}
+                <tr>
+                    <td>{{stock.name}}</td>
+                    <td class="text-center">{{stock.shares}}</td>
+                    <td class="text-center">{{stock.price}}</td>
+                    <td class="text-center">{{stock.product}}</td>
+                </tr>
+                {% endfor %}
+                <!-- insert users cash balance, and grand total of assets -->
+                <tr>
+                    <td scope="row" colspan="2" style="border-bottom: none;"></td>
+                    <th class="text-center">Cash Balance</th>
+                    <td class="text-center">{{balance}}</td>
+                </tr>
+                <tr>
+                    <td scope="row" colspan="2" style="border-bottom: none;"></td>
+                    <th class="text-center">Total Assets</th>
+                    <td class="text-center">{{total}}</td>
+                </tr>
+            </tbody>
+    
+        </table>
+    </div>
 </section>
 
 <script>

@@ -6,34 +6,36 @@
 
 {% block main %}
     <h3 class="pb-5" style="text-align: left">Sell A Stock</h3>
-    <form id="sellForm" class="center-up-flex-row mb-4" action="/sell" method="post">
-        <div class="center-up-flex-row mb-4">
-            <div class="form-group prt-3">
-                <label class="mb-1" for="select">Select Stock</label>
-                <select id="select" name="select" class="form-select" type="select" aria-label="stock select dropdown">
-                    <option value="">--none--</option>
-                    {% for share in userShares %}
-                    <option>{{share["symbol"]}}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group prt-3">
-                <label class="mb-1" for="shares">Select shares</label>
-                <div class="center-up-flex-row">
-                    <input disabled style="width: 100px;" autocomplete="off" class="form-control" id="shares" name="shares" min="1" oninput="validity.valid||(value='');" type="number">
-                    <div class="input-group-text" style="width: 67px; padding: 6px 4px;">Max:
-                        <span hidden id="maxElement" role="status"></span>
+    <section class="center-up-flex-column mb-4">
+        <form id="sellForm" action="/sell" method="post">
+            <div class="center-up-flex-row mb-4">
+                <div class="form-group prt-3 w-100">
+                    <label class="mb-1" for="select">Select Stock</label>
+                    <select id="select" name="select" class="form-select" type="select" aria-label="stock select dropdown">
+                        <option value="">--none--</option>
+                        {% for share in userShares %}
+                        <option>{{share["symbol"]}}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+    
+                <div class="form-group prt-3">
+                    <label class="mb-1" for="shares">Select shares</label>
+                    <div class="center-up-flex-row">
+                        <input disabled style="width: 100px;" autocomplete="off" class="form-control" id="shares" name="shares" min="1" oninput="validity.valid||(value='');" type="number">
+                        <div class="input-group-text" style="width: 67px; padding: 6px 4px;">Max:
+                            <span hidden id="maxElement" role="status"></span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <button disabled id="sellBtn" onclick="toggle('sellBtn', 'sellLoadingBtn');" class="btn btn-primary" style="position:relative; bottom: -1.5px; width:120px" type="submit">Sell Stock</button>
-        <button hidden id="sellLoadingBtn" class="btn btn-primary" style="position:relative; bottom: -1.5px; width:120px" type="button" disabled>
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            Loading...
-        </button>
-    </form>
+            <button disabled id="sellBtn" onclick="toggle('sellBtn', 'sellLoadingBtn');" class="btn btn-primary" style="position:relative; bottom: -1.5px; width:120px" type="submit">Sell Stock</button>
+            <button hidden id="sellLoadingBtn" class="btn btn-primary" style="position:relative; bottom: -1.5px; width:120px" type="button" disabled>
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Loading...
+            </button>
+        </form>
+    </section>
 
     <script>
         let select = document.getElementById("select");
