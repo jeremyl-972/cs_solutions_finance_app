@@ -89,7 +89,7 @@ def buy():
         return render_template("buy.html")
 
     # Get symbol
-    symbol = request.form.get("symbol")
+    symbol = request.form.get("symbol").strip()
     # Ensure symbol was submitted
     if not symbol:
         return apology("must provide symbol", 400)
@@ -228,22 +228,24 @@ def login():
     # User reached route via POST (as by submitting a form via POST)
     if request.method == "POST":
 
+        username = request.form.get("username").strip()
+        password = request.form.get("password").strip()
         # Ensure username was submitted
-        if not request.form.get("username"):
+        if not username:
             return apology("must provide username", 400)
 
         # Ensure password was submitted
-        elif not request.form.get("password"):
+        elif not password:
             return apology("must provide password", 400)
 
         # Query database for username
         db.execute("SELECT * FROM users WHERE username = %s",
-                   request.form.get("username"))
+                   username)
         rows = db.fetchall()
         print(rows)
 
         # Ensure username exists and password is correct
-        if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
+        if len(rows) != 1 or not check_password_hash(rows[0]["hash"], password):
             return apology("invalid username and/or password", 400)
 
         # Remember which user has logged in
@@ -276,7 +278,7 @@ def quote():
     if request.method == "GET":
         return render_template("quote.html")
 
-    symbol = request.form.get("symbol")
+    symbol = request.form.get("symbol").strip()
     # Ensure symbol was submitted
     if not symbol:
         return apology("must provide symbol", 400)
@@ -298,9 +300,9 @@ def register():
 
     # User reached route via POST (as by submitting a form via POST)
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        confirmation = request.form.get("confirmation")
+        username = request.form.get("username").strip()
+        password = request.form.get("password").strip()
+        confirmation = request.form.get("confirmation").strip()
         # Ensure username was submitted
         if not username:
             return apology("must provide username", 400)
@@ -433,7 +435,7 @@ def sell():
 
 @application.route("/search")
 def search():
-    input = request.args.get("q")
+    input = request.args.get("q").strip()
     # send q to database and get all stocks LIKE q
     db.execute("SELECT * FROM stocks WHERE symbol LIKE %s LIMIT %s",
                (input + "%", 100))
@@ -474,7 +476,7 @@ def search():
 @login_required
 def getShares():
     id = session["user_id"]
-    symbol = request.args.get("q")
+    symbol = request.args.get("q").strip()
     # get symbol id
     db.execute(
         "SELECT id FROM stocks WHERE symbol = %s", symbol)
