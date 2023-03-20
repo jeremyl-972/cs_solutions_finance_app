@@ -43,6 +43,9 @@ def after_request(response):
     response.headers["Pragma"] = "no-cache"
     return response
 
+@application.route("/health_check")
+def health_check():
+    return "Healthcheck ok"
 
 @application.route("/")
 @login_required
