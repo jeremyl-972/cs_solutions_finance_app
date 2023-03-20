@@ -81,6 +81,7 @@
                 // query database to get stocks
                 try {
                     const response = await fetch("/search?q=" + inputValue);
+                    console.log(response);
                     stocks = await response.json();
                 } catch (error) {
                     console.log(error);
