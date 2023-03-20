@@ -1,10 +1,14 @@
+# Stock Trader
+#### Link: http://stocktrader-env.eba-fqy4b2qm.ap-northeast-1.elasticbeanstalk.com
 In short, this is a Python Flask application that is hosted by AWS elastic beanstalk and is using AWS RDS for the database.
 This stock trader app registers users. Each user gets an initial $10,000 to "spend".
 Users can: get a quote, buy, or sell stocks. 
 My special features are:
-    --- a dynamic search written in javascript that calls an api on the backend to return the names of stocks that have matching characters, and the name, price, number of shares selected, and total cost of the stock that has an exact match to the search query. Once there is an exact match, the buy button is enabled and changing the number of shares will manipulate the total cost of the purchase.
-    --- the sell page will have a dropdown of the stocks the user owns. the user can only select up to the displayed max shares to sell, which is the number of shares the user owns
-    --- the history page lists the users transactions and displays the "buys" in red, indicating withdrawals, and "sells" in green, indicating positive transactions
+    --- A dynamic search written in javascript that calls an api on the backend to return the names of stocks that have matching characters along with the prices. 
+    Then the name, price, number of shares selected, and total cost of the stock will display in the table. 
+    Once there is an exact match, the buy button is enabled. Changing the number of shares will manipulate the total cost of the purchase.
+    --- In the sell page, there is a dropdown of the stocks the user owns. The user can only select up to the displayed max shares to sell, which is the number of shares the user owns.
+    --- The history page tables the user's transactions and displays the "buys" in red, indicating negative transactions, and the "sells" in green, indicating positive transactions.
 
 Note: Deploying, setting up a remote db, and the use of pymysql were not part of the assignment
 
