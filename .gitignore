@@ -172,3 +172,5 @@ API
 Training
 Blog
 About
+__pycache__
+flask_session
