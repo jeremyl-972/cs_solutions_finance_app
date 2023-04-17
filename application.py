@@ -2,9 +2,10 @@ from dotenv import load_dotenv
 import os
 import datetime
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, g, flash, redirect, render_template, request, session, url_for
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.local import LocalProxy
 import pymysql
 
 from helpers import apology, login_required, lookup, usd
@@ -24,10 +25,26 @@ application.config["SESSION_PERMANENT"] = False
 application.config["SESSION_TYPE"] = "filesystem"
 Session(application)
 
-# Configure app to use mysql.connector
-connection = pymysql.connect(
-    host=f'{os.getenv("DB_HOST")}', user=f'{os.getenv("DB_USER")}', passwd=f'{os.getenv("DB_PASSWORD")}', database=f'{os.getenv("DB")}', cursorclass=pymysql.cursors.DictCursor)
-db = connection.cursor()
+# Configure app to use pymysql
+def get_db():
+    if 'conn' not in g:
+        connection = pymysql.connect(
+        host=f'{os.getenv("DB_HOST")}', user=f'{os.getenv("DB_USER")}', passwd=f'{os.getenv("DB_PASSWORD")}', database=f'{os.getenv("DB")}', cursorclass=pymysql.cursors.DictCursor)
+        g.conn = connection
+        g.cur = connection.cursor()
+    return {"conn":g.conn, "cur":g.cur}
+
+def close_db():
+    g.cur.close()
+    g.conn.close()
+    g.pop('cur')
+    g.pop('conn')
+
+db = LocalProxy(get_db)
+
+# connection = pymysql.connect(
+#     host=f'{os.getenv("DB_HOST")}', user=f'{os.getenv("DB_USER")}', passwd=f'{os.getenv("DB_PASSWORD")}', database=f'{os.getenv("DB")}', cursorclass=pymysql.cursors.DictCursor)
+# db = connection.cursor()
 
 
 # Make sure API key is set
@@ -57,12 +74,12 @@ def index():
     stocks = []
     # set variable for total value of stock shares owned
     total = 0
-    db.execute("SELECT * FROM shares_owned WHERE userId = %s", id)
-    sharesList = db.fetchall()
+    db['cur'].execute("SELECT * FROM shares_owned WHERE userId = %s", id)
+    sharesList = db['cur'].fetchall()
     for share in sharesList:
-        db.execute(
+        db['cur'].execute(
             "SELECT symbol, name FROM stocks WHERE id = %s", share["stock_id"])
-        row = db.fetchall()
+        row = db['cur'].fetchall()
         current = lookup(row[0]["symbol"])
         price = current["price"]
         shares = share["shares"]
@@ -75,8 +92,8 @@ def index():
         stocks.append(dict)
         total = round(total * 100 + product * 100, 2) / 100
     # get user cash balance
-    db.execute("SELECT cash FROM users WHERE id = %s", id)
-    balanceList = db.fetchall()
+    db['cur'].execute("SELECT cash FROM users WHERE id = %s", id)
+    balanceList = db['cur'].fetchall()
     balance = balanceList[0]["cash"]
     total = round(total * 100 + balance * 100, 2) / 100
     print("Printing:", type(balance), type(total))
@@ -118,8 +135,8 @@ def buy():
 
     stockId = 0
     # get stock id based on symbol
-    db.execute("SELECT id FROM stocks WHERE symbol = %s", symbol)
-    stockIdList = db.fetchall()
+    db['cur'].execute("SELECT id FROM stocks WHERE symbol = %s", symbol)
+    stockIdList = db['cur'].fetchall()
     if not len(stockIdList) == 0:
         stockId = stockIdList[0]["id"]
     else:
@@ -127,8 +144,8 @@ def buy():
 
     # check if user can afford the purchase
     id = session["user_id"]
-    db.execute("SELECT cash FROM users WHERE id = %s", id)
-    userCashList = db.fetchall()
+    db['cur'].execute("SELECT cash FROM users WHERE id = %s", id)
+    userCashList = db['cur'].fetchall()
     if not len(userCashList) == 0:
         userCash = userCashList[0]["cash"]
         stockPrice = stockLookup["price"]
@@ -139,24 +156,24 @@ def buy():
     if userCash > total:
         # update user's cash balance
         balance = round(userCash * 100 - total * 100, 2) / 100
-        db.execute("UPDATE users SET cash = %s WHERE id = %s", (balance, id))
+        db['cur'].execute("UPDATE users SET cash = %s WHERE id = %s", (balance, id))
 
         # record transaction in transactions table
         purchaseDate = datetime.datetime.now()
-        db.execute("INSERT INTO transactions (purchase_date, userID, shares, stock_id, stock_price, total) VALUES (%s, %s, %s, %s, %s, %s)",
+        db['cur'].execute("INSERT INTO transactions (purchase_date, userID, shares, stock_id, stock_price, total) VALUES (%s, %s, %s, %s, %s, %s)",
                    (purchaseDate, id, buyShares, stockId, stockPrice, total))
 
         # check if stock exists in stocks table and add if not
-        db.execute("SELECT * FROM stocks WHERE symbol = %s", symbol)
-        isStock = db.fetchall()
+        db['cur'].execute("SELECT * FROM stocks WHERE symbol = %s", symbol)
+        isStock = db['cur'].fetchall()
         if len(isStock) == 0:
-            db.execute(
+            db['cur'].execute(
                 "INSERT INTO stocks (symbol, name) VALUES (%s, %s)", (symbol, name))
 
         # check if user exists in shares_owned table
-        db.execute(
+        db['cur'].execute(
             "SELECT * FROM shares_owned WHERE userId = %s", id)
-        userList = db.fetchall()
+        userList = db['cur'].fetchall()
         if not len(userList) == 0:
             # find element
             index = find(userList, "stock_id", stockId)
@@ -164,16 +181,16 @@ def buy():
             if index >= 0:
                 userShares = userList[index]["shares"]
                 totalShares = buyShares + userShares
-                db.execute(
+                db['cur'].execute(
                     "UPDATE shares_owned SET shares= %s WHERE userId = %s AND stock_id = %s", (totalShares, id, stockId))
             else:
-                db.execute(
+                db['cur'].execute(
                     "INSERT INTO shares_owned (userID, stock_id, shares) VALUES (%s, %s, %s)", (id, stockId, buyShares))
         else:
-            db.execute(
+            db['cur'].execute(
                 "INSERT INTO shares_owned (userID, stock_id, shares) VALUES (%s, %s, %s)", (id, stockId, buyShares))
         # commit transaction
-        connection.commit()
+        db["conn"].commit()
         # pass flash message with redirect
         stockPrice = usd(stockPrice)
         total = usd(total)
@@ -197,16 +214,16 @@ def history():
     userTransactions = []
 
     # get transactions based on user
-    db.execute(
+    db['cur'].execute(
         "SELECT * FROM transactions WHERE userID = %s", id)
-    transactions = db.fetchall()
+    transactions = db['cur'].fetchall()
     # set dict for each transaction and append to userTransactions
     for transaction in transactions:
         dict = {}
         dict["type"] = transaction["type"]
-        db.execute(
+        db['cur'].execute(
             "SELECT symbol FROM stocks WHERE id = %s", transaction["stock_id"])
-        symbol = db.fetchall()
+        symbol = db['cur'].fetchall()
         dict["symbol"] = symbol[0]["symbol"]
         amount = usd(transaction["total"])
         dict["amount"] = amount
@@ -242,9 +259,9 @@ def login():
             return apology("must provide password", 400)
 
         # Query database for username
-        db.execute("SELECT * FROM users WHERE username = %s",
+        db['cur'].execute("SELECT * FROM users WHERE username = %s",
                    username)
-        rows = db.fetchall()
+        rows = db['cur'].fetchall()
         print(rows)
 
         # Ensure username exists and password is correct
@@ -316,15 +333,15 @@ def register():
         elif not confirmation == password:
             return apology("password must match", 400)
         # Query database for username
-        elif db.execute("SELECT * FROM users WHERE username = %s", username):
+        elif db['cur'].execute("SELECT * FROM users WHERE username = %s", username):
             return apology("username already exists", 400)
         # Add user to database
         else:
             hash = generate_password_hash(
                 password, method='pbkdf2:sha256', salt_length=8)
-            db.execute(
+            db['cur'].execute(
                 "INSERT INTO users (username, hash) VALUES(%s, %s)", (username, hash))
-            connection.commit()
+            db["conn"].commit()
 
         # Redirect user to login page
         return redirect("/login")
@@ -344,8 +361,8 @@ def sell():
     # get user id
     id = session["user_id"]
     # get user's shares info
-    db.execute("SELECT * FROM shares_owned WHERE userID = %s", id)
-    sharesList = db.fetchall()
+    db['cur'].execute("SELECT * FROM shares_owned WHERE userID = %s", id)
+    sharesList = db['cur'].fetchall()
 
     # get stock symbols
     userShares = []
@@ -353,9 +370,9 @@ def sell():
         dict = {}
         # get symbol
         stockId = share["stock_id"]
-        db.execute(
+        db['cur'].execute(
             "SELECT symbol FROM stocks WHERE id = %s", stockId)
-        stockSymbolList = db.fetchall()
+        stockSymbolList = db['cur'].fetchall()
         stockSymbol = stockSymbolList[0]["symbol"]
         # add to dict key/val pair for symbol
         dict["symbol"] = stockSymbol
@@ -374,9 +391,9 @@ def sell():
     # get selected option value
     symbol = request.form.get("select")
     # check if option is valid symbol
-    db.execute(
+    db['cur'].execute(
         "SELECT id, name, symbol FROM stocks WHERE symbol = %s", symbol)
-    validStock = db.fetchall()
+    validStock = db['cur'].fetchall()
     if not validStock:
         return apology("Select a valid stock")
 
@@ -392,9 +409,9 @@ def sell():
     # UPDATE SHARES_OWNED TABLE:
     # get user's share info
     stockId = validStock[0]["id"]
-    db.execute(
+    db['cur'].execute(
         "SELECT * FROM shares_owned WHERE userID = %s AND stock_id = %s", (id, stockId))
-    userShare = db.fetchall()
+    userShare = db['cur'].fetchall()
 
     # check shares do not exceed owned shares
     owned_shares = userShare[0]["shares"]
@@ -405,28 +422,28 @@ def sell():
     stockLookup = lookup(validStock[0]["symbol"])
     stockPrice = stockLookup["price"]
     total = round((stockPrice * 100) * (sharesToSell * 100), 2) / 10000
-    db.execute("SELECT cash FROM users WHERE id = %s", id)
-    cashQuery = db.fetchall()
+    db['cur'].execute("SELECT cash FROM users WHERE id = %s", id)
+    cashQuery = db['cur'].fetchall()
     balance = cashQuery[0]["cash"]
     cash = round((balance * 100) + (total * 100), 2) / 100
-    db.execute("UPDATE users SET cash = %s WHERE id = %s", (cash, id))
+    db['cur'].execute("UPDATE users SET cash = %s WHERE id = %s", (cash, id))
 
     # update transactions table
     purchaseDate = datetime.datetime.now()
-    db.execute("INSERT INTO transactions (purchase_date, userID, shares, stock_id, stock_price, total, type) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+    db['cur'].execute("INSERT INTO transactions (purchase_date, userID, shares, stock_id, stock_price, total, type) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                (purchaseDate, id, sharesToSell, stockId, stockPrice, total, "Sell"))
 
     # if shares matches owned shares, remove stock row from shares owned table
     if sharesToSell == owned_shares:
-        db.execute(
+        db['cur'].execute(
             "DELETE FROM shares_owned WHERE userID = %s AND stock_id = %s", (id, stockId))
     # update owned shares
     shares = owned_shares - sharesToSell
-    db.execute(
+    db['cur'].execute(
         "UPDATE shares_owned SET shares = %s WHERE userID = %s AND stock_id = %s", (shares, id, stockId))
 
     # commit transaction
-    connection.commit()
+    db["conn"].commit()
     # pass flash message with redirect
     stockPrice = usd(stockPrice)
     total = usd(total)
@@ -440,9 +457,9 @@ def sell():
 def search():
     input = request.args.get("q").strip()
     # send q to database and get all stocks LIKE q
-    db.execute("SELECT * FROM stocks WHERE symbol LIKE %s LIMIT %s",
+    db['cur'].execute("SELECT * FROM stocks WHERE symbol LIKE %s LIMIT %s",
                (input + "%", 100))
-    stocks = db.fetchall()
+    stocks = db['cur'].fetchall()
 
     if not stocks:
         return stocks
@@ -481,13 +498,13 @@ def getShares():
     id = session["user_id"]
     symbol = request.args.get("q").strip()
     # get symbol id
-    db.execute(
+    db['cur'].execute(
         "SELECT id FROM stocks WHERE symbol = %s", symbol)
-    symbol_idList = db.fetchall()
+    symbol_idList = db['cur'].fetchall()
     symbol_id = symbol_idList[0]["id"]
-    db.execute(
+    db['cur'].execute(
         "SELECT shares FROM shares_owned WHERE userID = %s AND stock_id = %s", (id, symbol_id))
-    sharesList = db.fetchall()
+    sharesList = db['cur'].fetchall()
     shares = sharesList[0]["shares"]
     return [shares]
 
@@ -509,3 +526,6 @@ def setDict(stock):
     dict['name'] = name
     dict['price'] = price
     return dict
+
+# if __name__ == '__main__':  
+#    application.run(debug=True)
